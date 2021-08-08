@@ -34,12 +34,14 @@ impl From<prost::DecodeError> for Error {
 
 pub struct Client {
     tcp_stream: Option<tokio::net::TcpStream>,
+    client_identifier: Vec<u8>,
 }
 
 impl Client {
     pub fn new() -> Self {
         Self {
-            tcp_stream: None
+            tcp_stream: None,
+            client_identifier: vec![],
         }
     }
 
@@ -48,6 +50,7 @@ impl Client {
 
         self.send_connection_request().await?;
         self.wait_for_connection_confirmation().await?;
+        println!("{:?}", self.client_identifier);
         Ok(())
     }
 
@@ -90,6 +93,7 @@ impl Client {
 
                 let response = krpc::ConnectionResponse::decode(slice)?;
                 println!("{:?}", response);
+                self.client_identifier = response.client_identifier;
             },
             None => {}
         };
