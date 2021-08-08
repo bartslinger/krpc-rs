@@ -1,4 +1,4 @@
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncWriteExt, AsyncReadExt};
 use prost::Message;
 
 pub mod krpc {
@@ -10,6 +10,7 @@ pub mod krpc {
 pub enum Error {
     IoError(std::io::Error),
     EncodeError(prost::EncodeError),
+    DecodeError(prost::DecodeError),
     NotConnected,
 }
 
@@ -22,6 +23,12 @@ impl From<std::io::Error> for Error {
 impl From<prost::EncodeError> for Error {
     fn from(e: prost::EncodeError) -> Self {
         Error::EncodeError(e)
+    }
+}
+
+impl From<prost::DecodeError> for Error {
+    fn from(e: prost::DecodeError) -> Self {
+        Error::DecodeError(e)
     }
 }
 
@@ -48,7 +55,7 @@ impl Client {
 
         let buf =  message.encode_length_delimited_to_vec();
 
-        match &mut(self.tcp_stream) {
+        match &mut self.tcp_stream {
             Some(s) => {
                 let result = s.write_all(&buf).await;
                 println!("{:?}", result);
@@ -72,8 +79,23 @@ impl Client {
     }
 
     async fn wait_for_connection_confirmation(&mut self) -> Result<(), Error> {
-        let buf: Vec<u8> = Vec::with_capacity(100);
-        // krpc::ConnectionResponse::decode(buf);
+        match &mut self.tcp_stream {
+            Some(s) => {
+                let mut buf = vec![];
+                s.read_buf(&mut buf).await?;
+                let mut slice = &*buf;
+
+                let len = prost::encoding::decode_varint(&mut slice)?;
+                println!("{:?}", len);
+
+                let response = krpc::ConnectionResponse::decode(slice)?;
+                println!("{:?}", response);
+            },
+            None => {}
+        };
+        
+        // let buf: Vec<u8> = vec![1,2,3];
+        // krpc::ConnectionResponse::decode(buf.as_slice());
         Ok(())
     }
 
