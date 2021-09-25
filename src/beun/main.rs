@@ -10,8 +10,14 @@ async fn main() -> Result<(), krpc_rs::Error> {
     client.connect("127.0.0.1:50000").await?;
 
     // tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
+    client.list_services().await?;
+    client.get_active_vessel().await?;
     client.activate_next_stage().await?;
-    tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
+    return Ok(());
 
-    Ok(())
+
+    loop {
+        client.get_status().await?;
+        // tokio::time::sleep(tokio::time::Duration::from_millis(20)).await;
+    }
 }

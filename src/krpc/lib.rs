@@ -11,6 +11,8 @@ pub enum Error {
     IoError(std::io::Error),
     EncodeError(prost::EncodeError),
     DecodeError(prost::DecodeError),
+    NoResult,
+    UnexpectedResult,
     NotConnected,
 }
 
@@ -50,7 +52,7 @@ impl Client {
 
         self.send_connection_request().await?;
         self.wait_for_connection_confirmation().await?;
-        println!("{:?}", self.client_identifier);
+        // println!("{:?}", self.client_identifier);
         Ok(())
     }
 
@@ -60,10 +62,11 @@ impl Client {
 
         match &mut self.tcp_stream {
             Some(s) => {
-                let result = s.write_all(&buf).await;
-                println!("{:?}", result);
+                let _result = s.write_all(&buf).await;
+                // println!("{:?}", result);
             },
             None => {
+                println!("Not connected, cannot write message");
                 return Err(Error::NotConnected);
             }
         };
@@ -88,11 +91,8 @@ impl Client {
                 s.read_buf(&mut buf).await?;
                 let mut slice = &*buf;
 
-                let len = prost::encoding::decode_varint(&mut slice)?;
-                println!("{:?}", len);
-
+                let _len = prost::encoding::decode_varint(&mut slice)?;
                 let response = krpc::ConnectionResponse::decode(slice)?;
-                println!("{:?}", response);
                 self.client_identifier = response.client_identifier;
             },
             None => {}
@@ -103,46 +103,109 @@ impl Client {
         Ok(())
     }
 
-    pub async fn activate_next_stage(&mut self) -> Result<(), Error> {
-
+    pub async fn get_status(&mut self) -> Result<(), Error> {
         let mut request = krpc::Request::default();
         let mut call = krpc::ProcedureCall::default();
         call.service = "KRPC".to_string();
-        call.procedure = "GetServices".to_string();
-        // call.service_id = 2;
-        // call.procedure_id = 207;
+        call.procedure = "GetStatus".to_string();
         request.calls.push(call);
-
-        println!("{:?}", request);
-
         self.write_message(&request).await?;
-        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
-        let _ = self.read_response().await;
-        let _ = self.read_response().await;
-        let _ = self.read_response().await;
+        let return_value = self.read_response().await?;
+        // Now we need to parse this
+        let status = krpc::Status::decode(return_value.as_slice())?;
+        if status.version == "0.4.8" {
+            println!("STATUS: {:?}", status);
+            return Ok(())
+        } else {
+            return Err(Error::UnexpectedResult)
+        }
+
+        println!("{:?}", status);
+
         Ok(())
     }
 
-    async fn read_response(&mut self) -> Result<(), Error> {
+    pub async fn list_services(&mut self) -> Result<(), Error> {
+        self.perform_request("KRPC", "GetServices", vec![]).await?;
+        let return_value = self.read_response().await?;
+        let services = krpc::Services::decode(return_value.as_slice())?.services;
+        for s in &services {
+            println!("{:?}", s.name);
+            for p in &s.procedures {
+                if p.name == "Vessel_get_Control" {
+                    println!("{:?}", p);
+                }
+                // println!(" - {:?}", p.name);
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn get_active_vessel(&mut self) -> Result<(), Error> {
+        self.perform_request("SpaceCenter", "get_ActiveVessel", vec![]).await?;
+        let return_value = self.read_response().await?;
+        println!("Procedure result: {:?}", return_value);
+
+        self.perform_request("SpaceCenter", "Vessel_get_Control", vec![1]).await?;
+        let return_value = self.read_response().await?;
+        println!("Procedure result: {:?}", return_value);
+
+        Ok(())
+    }
+
+    pub async fn activate_next_stage(&mut self) -> Result<(), Error> {
+        self.perform_request("SpaceCenter", "Control_ActivateNextStage", vec![2]).await?;
+        let return_value = self.read_response().await?;
+        println!("Next stage response: {:?}", return_value);
+        Ok(())
+    }
+    
+    async fn read_response(&mut self) -> Result<Vec<u8>, Error> {
         match &mut self.tcp_stream {
             Some(s) => {
                 let mut buf = vec![];
-                s.read_buf(&mut buf).await?;
-                let aaa = buf.len();
-                let mut slice = &*buf;
+                let mut cnt = 0;
+                let response = loop {
+                    cnt += 1;
+                    s.read_buf(&mut buf).await?;
+                    // let aaa = buf.len();
+                    let mut slice = &*buf;
 
-                let len = prost::encoding::decode_varint(&mut slice)?;
-                println!("{:?}, {}", len, aaa);
+                    let _len = prost::encoding::decode_varint(&mut slice)?;
+                    let response = krpc::Response::decode(slice);
+                    match response {
+                        Ok(response) => { break response },
+                        Err(_) => {},
+                    }
+                };
 
-                let response = krpc::Response::decode(slice)?;
-                println!("{:?}", response);
+                let return_value = response.results.get(0).ok_or(Error::NoResult)?.value.clone();
+                return Ok(return_value)
             },
             None => {}
         };
         
         // let buf: Vec<u8> = vec![1,2,3];
         // krpc::ConnectionResponse::decode(buf.as_slice());
-        Ok(())
+        Err(Error::NotConnected)
     }
 
+    async fn perform_request(&mut self, service: &str, procedure: &str, args: Vec<u8>) -> Result<(), Error> {
+        let mut request = krpc::Request::default();
+        let mut call = krpc::ProcedureCall::default();
+        call.service = service.to_string();
+        call.procedure = procedure.to_string();
+        for a in args {
+            let mut argument = krpc::Argument::default();
+            argument.value = vec![a];
+            call.arguments.push(argument);
+        }
+        request.calls.push(call);
+
+        println!("{:?}", request);
+
+        self.write_message(&request).await?;
+        Ok(())
+    }
+ 
 }
