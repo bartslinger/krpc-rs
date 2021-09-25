@@ -103,4 +103,46 @@ impl Client {
         Ok(())
     }
 
+    pub async fn activate_next_stage(&mut self) -> Result<(), Error> {
+
+        let mut request = krpc::Request::default();
+        let mut call = krpc::ProcedureCall::default();
+        call.service = "KRPC".to_string();
+        call.procedure = "GetServices".to_string();
+        // call.service_id = 2;
+        // call.procedure_id = 207;
+        request.calls.push(call);
+
+        println!("{:?}", request);
+
+        self.write_message(&request).await?;
+        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+        let _ = self.read_response().await;
+        let _ = self.read_response().await;
+        let _ = self.read_response().await;
+        Ok(())
+    }
+
+    async fn read_response(&mut self) -> Result<(), Error> {
+        match &mut self.tcp_stream {
+            Some(s) => {
+                let mut buf = vec![];
+                s.read_buf(&mut buf).await?;
+                let aaa = buf.len();
+                let mut slice = &*buf;
+
+                let len = prost::encoding::decode_varint(&mut slice)?;
+                println!("{:?}, {}", len, aaa);
+
+                let response = krpc::Response::decode(slice)?;
+                println!("{:?}", response);
+            },
+            None => {}
+        };
+        
+        // let buf: Vec<u8> = vec![1,2,3];
+        // krpc::ConnectionResponse::decode(buf.as_slice());
+        Ok(())
+    }
+
 }
