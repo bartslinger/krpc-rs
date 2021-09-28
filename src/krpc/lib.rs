@@ -5,6 +5,14 @@ pub mod krpc {
     include!(concat!(env!("OUT_DIR"), "/krpc.schema.rs"));
 }
 
+pub mod connection;
+
+#[derive(Debug)]
+pub struct Vessel {
+    id: u64,
+}
+impl Vessel {
+}
 
 #[derive(Debug)]
 pub enum Error {
@@ -34,8 +42,16 @@ impl From<prost::DecodeError> for Error {
     }
 }
 
+enum KerbalFutureState {
+    Created,
+    Pending,
+    Finished,
+    Error,
+}
+
 pub struct Client {
     tcp_stream: Option<tokio::net::TcpStream>,
+    buf: Vec<u8>,
     client_identifier: Vec<u8>,
 }
 
@@ -43,6 +59,7 @@ impl Client {
     pub fn new() -> Self {
         Self {
             tcp_stream: None,
+            buf: vec![],
             client_identifier: vec![],
         }
     }
@@ -62,7 +79,10 @@ impl Client {
 
         match &mut self.tcp_stream {
             Some(s) => {
-                let _result = s.write_all(&buf).await;
+                let result = s.write_all(&buf).await;
+                if let Err(e) = result {
+                    println!("Error writing to buf: {:?}", e);
+                }
                 // println!("{:?}", result);
             },
             None => {
@@ -107,14 +127,31 @@ impl Client {
         let mut request = krpc::Request::default();
         let mut call = krpc::ProcedureCall::default();
         call.service = "KRPC".to_string();
-        call.procedure = "GetStatus".to_string();
+        call.procedure = "GetClientName".to_string(); // GetClientName
         request.calls.push(call);
         self.write_message(&request).await?;
+        self.write_message(&request).await?;
+        self.write_message(&request).await?;
+        self.write_message(&request).await?;
+        self.write_message(&request).await?;
+        self.write_message(&request).await?;
+        self.write_message(&request).await?;
+        self.write_message(&request).await?;
+        self.write_message(&request).await?;
+        self.write_message(&request).await?;
         let return_value = self.read_response().await?;
+        println!("{:?}", return_value);
+        let mut slice = &*return_value;
+        let len = prost::encoding::decode_varint(&mut slice);
+        match std::str::from_utf8(slice) {
+            Ok(name) => println!("Name: {}", name),
+            Err(e) => {}
+        };
+        return Ok(());
         // Now we need to parse this
         let status = krpc::Status::decode(return_value.as_slice())?;
         if status.version == "0.4.8" {
-            println!("STATUS: {:?}", status);
+            // println!("STATUS: {:?}", status);
             return Ok(())
         } else {
             return Err(Error::UnexpectedResult)
@@ -124,33 +161,133 @@ impl Client {
 
         Ok(())
     }
+ 
+    async fn read_response(&mut self) -> Result<Vec<u8>, Error> {
+        match &mut self.tcp_stream {
+            Some(s) => {
+
+                let mut read_messages = 0;
+                loop {
+                    // read some stuff into the buf
+                    let before = self.buf.len();
+                    let i = s.read_buf(&mut self.buf).await?;
+                    println!("{} {}", before, self.buf.len());
+
+                    loop {
+                        // try to decode a varint out of this, might not be possible
+                        let mut slice = &*(self.buf);
+                        let len = match prost::encoding::decode_varint(&mut slice) {
+                            Ok(l) => l,
+                            Err(e) => panic!("Invalid varint {:?}", e),
+                        };
+                        
+                        let varint_size = prost::encoding::encoded_len_varint(len);
+                        let encoded_message_size = varint_size + len as usize;
+                        if self.buf.len() >= encoded_message_size{
+                            read_messages += 1;
+                            println!("+1");
+                            let new_buf = self.buf[encoded_message_size..].to_vec();
+                            self.buf = new_buf;
+                        } else {
+                            break
+                        }
+                        if self.buf.len() == 0 {
+                            break
+                        }
+                    }
+                    if read_messages == 10 {
+                        break
+                    }
+                }
+
+                println!("{:?}", read_messages);
+                return Ok(vec![read_messages]);
+                // let mut len: u64 = 0;
+                // let response = loop {
+                //     let before = self.buf.len();
+                //     let i = s.read_buf(&mut self.buf).await?;
+                //     let after = self.buf.len();
+
+                //     if len == 0 {
+                //         let mut slice = &*(self.buf);
+                //         len = prost::encoding::decode_varint(&mut slice)?;
+                //         let varint_space = prost::encoding::encoded_len_varint(len);
+                //         self.buf = self.buf[varint_space..].to_vec();
+                //     }
+                //     let afterafter = self.buf.len();
+                //     println!("Buf: {}, {}, {}, {:?}", before, after, afterafter, i);
+                //     if self.buf.len() < len as usize {
+                //         println!("continue");
+                //         continue
+                //     }
+                //     let decode_slice = self.buf.get(0..(len as usize)).ok_or(Error::NoResult)?;
+                //     let response = krpc::Response::decode(decode_slice);
+                //     match response {
+                //         Ok(response) => { 
+                //             self.buf = self.buf[(len as usize)..].to_vec();
+                //             break response
+                //         },
+                //         Err(e) => {
+                //             println!("Cannot decode: {:?}", e);
+                //         },
+                //     }
+                // };
+
+                // let return_value = response.results.get(0).ok_or(Error::NoResult)?.value.clone();
+                // return Ok(return_value)
+            },
+            None => {},
+        };
+        
+        // let buf: Vec<u8> = vec![1,2,3];
+        // krpc::ConnectionResponse::decode(buf.as_slice());
+        Err(Error::NotConnected)
+    }
 
     pub async fn list_services(&mut self) -> Result<(), Error> {
         self.perform_request("KRPC", "GetServices", vec![]).await?;
         let return_value = self.read_response().await?;
         let services = krpc::Services::decode(return_value.as_slice())?.services;
         for s in &services {
-            println!("{:?}", s.name);
+            if s.name != "KRPC" {
+                continue
+            }
             for p in &s.procedures {
+                println!("{:?}", p);
                 if p.name == "Vessel_get_Control" {
-                    println!("{:?}", p);
+                    println!("{:?}", p.name);
                 }
-                // println!(" - {:?}", p.name);
+                // let types = match &p.return_type {
+                //     Some(t) => {
+                //         if krpc::r#type::TypeCode::from_i32(t.code) == Some(krpc::r#type::TypeCode::Tuple) {
+                //             println!("{:?} {:?}", p.name, t);
+                //         }
+                //         format!("{:?}", krpc::r#type::TypeCode::from_i32(t.code))
+                //     },
+                //     _ => "".to_string(),
+                // };
+                // println!("{:?}: {:?}", p.name, types);
+                // println!("{:?}", p);
+                // println!("");
             }
         }
         Ok(())
     }
 
-    pub async fn get_active_vessel(&mut self) -> Result<(), Error> {
+    pub async fn get_active_vessel(&mut self) -> Result<Vessel, Error> {
         self.perform_request("SpaceCenter", "get_ActiveVessel", vec![]).await?;
         let return_value = self.read_response().await?;
         println!("Procedure result: {:?}", return_value);
-
+        
+        let id = prost::encoding::decode_varint(&mut return_value.as_slice())?;
+        // Parse return value as uint64
         self.perform_request("SpaceCenter", "Vessel_get_Control", vec![1]).await?;
         let return_value = self.read_response().await?;
         println!("Procedure result: {:?}", return_value);
 
-        Ok(())
+        Ok(Vessel {
+            id
+        })
     }
 
     pub async fn activate_next_stage(&mut self) -> Result<(), Error> {
@@ -160,34 +297,15 @@ impl Client {
         Ok(())
     }
     
-    async fn read_response(&mut self) -> Result<Vec<u8>, Error> {
-        match &mut self.tcp_stream {
-            Some(s) => {
-                let mut buf = vec![];
-                let mut cnt = 0;
-                let response = loop {
-                    cnt += 1;
-                    s.read_buf(&mut buf).await?;
-                    // let aaa = buf.len();
-                    let mut slice = &*buf;
-
-                    let _len = prost::encoding::decode_varint(&mut slice)?;
-                    let response = krpc::Response::decode(slice);
-                    match response {
-                        Ok(response) => { break response },
-                        Err(_) => {},
-                    }
-                };
-
-                let return_value = response.results.get(0).ok_or(Error::NoResult)?.value.clone();
-                return Ok(return_value)
-            },
-            None => {}
+    fn build_call(service: &str, procedure: &str) -> krpc::ProcedureCall {
+        let mut call = krpc::ProcedureCall {
+            service: service.to_string(),
+            procedure: procedure.to_string(),
+            arguments: vec![],
+            service_id: 0,
+            procedure_id: 0,
         };
-        
-        // let buf: Vec<u8> = vec![1,2,3];
-        // krpc::ConnectionResponse::decode(buf.as_slice());
-        Err(Error::NotConnected)
+        call
     }
 
     async fn perform_request(&mut self, service: &str, procedure: &str, args: Vec<u8>) -> Result<(), Error> {
