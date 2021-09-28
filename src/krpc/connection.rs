@@ -41,58 +41,42 @@ impl Connection {
     }
     
     async fn register_client(&mut self, client_name: &str) -> Result<(), Error> {
+        let request = krpc::ConnectionRequest {
+            r#type: krpc::connection_request::Type::Rpc as i32,
+            client_name: client_name.to_string(),
+            client_identifier: vec![],
+        };
+        let reply = self.execute_rpc(&request).await?;
+       
+        let mut slice = &*reply;
+        let _len = prost::encoding::decode_varint(&mut slice);
+        let connection_response = krpc::ConnectionResponse::decode(slice)?;
+        println!("Connection response: {:?}", connection_response);
+        self.client_identifier = connection_response.client_identifier;
+        Ok(())
+    }
+
+    async fn execute_rpc(&mut self, message: &impl prost::Message) -> Result<Vec<u8>, Error> {
         
+        // Register the reader first
         let (oneshot_sender, oneshot_receiver) = tokio::sync::oneshot::channel::<RawRpcReply>();
         {
             let mut queue = self.rpc_queue.lock().await;
             queue.push(oneshot_sender);
         }
-        self.send_connection_request(client_name).await?;
         
-        println!("Waiting for reply:");
-        let reply = oneshot_receiver.await;
-        println!("Reply: {:?}", reply);
-        // self.wait_for_connection_confirmation().await?;
-        Ok(())
-    }
-
-    async fn send_connection_request(&mut self, cilent_name: &str) -> Result<(), Error> {
-        let mut test = krpc::ConnectionRequest {
-            r#type: krpc::connection_request::Type::Rpc as i32,
-            client_name: cilent_name.to_string(),
-            client_identifier: vec![],
-        };
-        self.write_message(&mut test).await?;
-
-        Ok(())
-    }
-
-    // async fn wait_for_connection_confirmation(&mut self) -> Result<(), Error> {
-    //     let mut buf = vec![];
-    //     self.rpc_reader.read_buf(&mut buf).await?;
-    //     let mut slice = &*buf;
-
-    //     let _len = prost::encoding::decode_varint(&mut slice)?;
-    //     let response = krpc::ConnectionResponse::decode(slice)?;
-    //     self.client_identifier = response.client_identifier;
-        
-    //     // let buf: Vec<u8> = vec![1,2,3];
-    //     // krpc::ConnectionResponse::decode(buf.as_slice());
-    //     Ok(())
-    // }
-
-    async fn write_message(&mut self, message: &impl prost::Message) -> Result<(), Error> {
-
+        // Then, send the request
         let buf =  message.encode_length_delimited_to_vec();
 
         let result = self.rpc_writer.write_all(&buf).await;
         if let Err(e) = result {
             println!("Error writing to buf: {:?}", e);
+            // should probably remove the sender from the queue here
         }
-        // println!("{:?}", result);
-        Ok(())
+        
+        // And now we wait for the result
+        Ok(oneshot_receiver.await?)
     }
-
     
     async fn start_reader(mut rpc_reader: tokio::net::tcp::OwnedReadHalf, rpc_queue: RpcQueue) -> Result<(), Error> {
         tokio::spawn(async move {
@@ -127,10 +111,6 @@ impl Connection {
                                 let _ = oneshot.send(response.to_vec());
                             }
                         }
-                        // let len = prost::encoding::decode_varint(&mut response);
-                        // let test = krpc::ConnectionResponse::decode(response);
-                        // println!("{:?}", test);
-                        
                         
                         let new_buf = remaining.to_vec();
                         buf = new_buf;
@@ -154,6 +134,7 @@ pub enum Error {
     IoError(std::io::Error),
     EncodeError(prost::EncodeError),
     DecodeError(prost::DecodeError),
+    OneshotReceiveError(tokio::sync::oneshot::error::RecvError),
 }
 
 impl From<std::io::Error> for Error {
@@ -173,3 +154,10 @@ impl From<prost::DecodeError> for Error {
         Error::DecodeError(e)
     }
 }
+
+impl From<tokio::sync::oneshot::error::RecvError> for Error {
+    fn from(e: tokio::sync::oneshot::error::RecvError) -> Self {
+        Error::OneshotReceiveError(e)
+    }
+}
+
