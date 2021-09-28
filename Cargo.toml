@@ -15,7 +15,7 @@ name = "beun"
 path = "src/beun/main.rs"
 
 [dependencies]
-tokio = { version = "1.9.0", features = ["net", "time", "io-util", "macros", "rt-multi-thread"] }
+tokio = { version = "1.9.0", features = ["net", "sync", "time", "io-util", "macros", "rt-multi-thread"] }
 prost = "0.8"
 
 [build-dependencies]
