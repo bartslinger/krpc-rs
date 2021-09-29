@@ -5,7 +5,9 @@ pub mod krpc {
     include!(concat!(env!("OUT_DIR"), "/krpc.schema.rs"));
 }
 
+mod decoder;
 pub mod connection;
+pub mod space_center;
 
 #[derive(Debug)]
 pub struct Vessel {
