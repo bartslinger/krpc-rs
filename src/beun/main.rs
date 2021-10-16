@@ -15,22 +15,29 @@ async fn main() -> Result<(), Error> {
     
     let control = vessel.control().await?;
     println!("Control: {:?}", control);
+    
+    let flight = vessel.flight().await?;
+    println!("Flight: {:?}", flight);
+    
+    let available_torque = vessel.available_torque().await?;
+    println!("{:?}", available_torque);
+    // let _ = flight.velocity().await?;
+    
+    // let _ = control.activate_next_stage().await?;
 
-    let _ = control.activate_next_stage().await?;
-
-    loop {
-        let (met, mass, funds, science) = tokio::join!(
-            vessel.met(),
-            vessel.mass(),
-            space_center.funds(),
-            space_center.science(),
-        );
-        println!("{}:: Mass: {:?}; Got {:?} funds and {:?} science!", met?, mass, funds, science);
-    }
+    // loop {
+    //     let (met, mass, funds, science) = tokio::join!(
+    //         vessel.met(),
+    //         vessel.mass(),
+    //         space_center.funds(),
+    //         space_center.science(),
+    //     );
+    //     println!("{:.2}:: Mass: {:?}; Got {:?} funds and {:?} science!", met?, mass, funds, science);
+    // }
     
     // tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
     
-    // Ok(())
+    Ok(())
 }
 
 #[derive(Debug)]

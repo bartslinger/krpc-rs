@@ -1,4 +1,6 @@
 use std::convert::TryInto;
+use super::schema;
+use prost::Message;
 
 #[cfg(test)]
 mod tests {
@@ -48,6 +50,27 @@ pub fn decode_uint32(input: Vec<u8>) -> Result<u32, Error> {
 pub fn decode_class(input: Vec<u8>) -> Result<u64, Error> {
     let id = prost::encoding::decode_varint(&mut input.as_slice())?;
     Ok(id)
+}
+
+pub fn decode_tuple_2(input: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), Error> {
+    let tuple = schema::Tuple::decode(input.as_slice())?;
+    if tuple.items.len() != 2 {
+        return Err(Error::InvalidInput);
+    }
+    let first = tuple.items.get(0).ok_or(Error::InvalidInput)?.clone();
+    let second = tuple.items.get(1).ok_or(Error::InvalidInput)?.clone();
+    Ok((first, second))
+}
+
+pub fn decode_tuple_3(input: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Error> {
+    let tuple = schema::Tuple::decode(input.as_slice())?;
+    if tuple.items.len() != 3 {
+        return Err(Error::InvalidInput);
+    }
+    let first = tuple.items.get(0).ok_or(Error::InvalidInput)?.clone();
+    let second = tuple.items.get(1).ok_or(Error::InvalidInput)?.clone();
+    let third = tuple.items.get(1).ok_or(Error::InvalidInput)?.clone();
+    Ok((first, second, third))
 }
 
 #[derive(Debug)]
