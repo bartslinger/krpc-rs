@@ -69,7 +69,26 @@ impl<'a> Vessel<'a> {
         let result = self.parent.conn.execute_procedure("SpaceCenter", "Vessel_get_Mass", arguments).await?;
         Ok(decoder::decode_float(result)?)
     }
-    
+
+    pub async fn velocity(&self, reference_frame: &'a ReferenceFrame<'a>) -> Result<(f64, f64, f64), Error> {
+        let arguments = vec![
+            schema::Argument {
+                position: 0,
+                value: encoder::encode_u64(self.id)?,
+            },
+            schema::Argument {
+                position: 1,
+                value: encoder::encode_u64(reference_frame.id)?,
+            },
+        ];
+
+        let result = self.parent.conn.execute_procedure("SpaceCenter", "Vessel_Velocity", arguments).await?;
+        let a = decoder::decode_tuple_3(result)?;
+        println!("{:?}", a);
+        let velocity = (decoder::decode_double(a.0)?, decoder::decode_double(a.1)?, decoder::decode_double(a.2)?);
+        Ok(velocity)
+    }
+   
     pub async fn available_torque(&self) -> Result<((f64, f64, f64), (f64, f64, f64)), Error> {
         let arguments = vec![schema::Argument {
             position: 0,
@@ -99,17 +118,36 @@ impl<'a> Vessel<'a> {
         })
     }
 
-    pub async fn flight(&'a self) -> Result<Flight<'a>, Error> {
-        let arguments = vec![schema::Argument {
-            position: 0,
-            value: encoder::encode_u64(self.id)?,
-        }];
+    pub async fn flight(&'a self, reference_frame: &'a ReferenceFrame<'a>) -> Result<Flight<'a>, Error> {
+        let arguments = vec![
+            schema::Argument {
+                position: 0,
+                value: encoder::encode_u64(self.id)?,
+            },
+            schema::Argument {
+                position: 1,
+                value: encoder::encode_u64(reference_frame.id)?,
+            },
+        ];
         let result = self.parent.conn.execute_procedure("SpaceCenter", "Vessel_Flight", arguments).await?;
         let id = decoder::decode_class(result)?;
         Ok(Flight{
             id,
             parent: &self.parent,
         })
+    }
+    
+    pub async fn surface_reference_frame(&'a self) -> Result<ReferenceFrame<'a>, Error> {
+        let arguments = vec![schema::Argument {
+            position: 0,
+            value: encoder::encode_u64(self.id)?,
+        }];
+        let result = self.parent.conn.execute_procedure("SpaceCenter", "Vessel_get_SurfaceReferenceFrame", arguments).await?;
+        let id = decoder::decode_class(result)?;
+        Ok(ReferenceFrame{
+            id,
+            parent: &self.parent,
+        })       
     }
 }
 
@@ -139,7 +177,17 @@ pub struct Flight<'a> {
 }
 
 impl<'a> Flight<'a> {
-    
+
+    pub async fn roll(&self) -> Result<f32, Error> {
+        let arguments = vec![schema::Argument {
+            position: 0,
+            value: encoder::encode_u64(self.id)?,
+        }];
+
+        let result = self.parent.conn.execute_procedure("SpaceCenter", "Flight_get_Roll", arguments).await?;
+        Ok(decoder::decode_float(result)?)
+    }
+
     pub async fn pitch(&self) -> Result<f32, Error> {
         let arguments = vec![schema::Argument {
             position: 0,
@@ -150,17 +198,22 @@ impl<'a> Flight<'a> {
         Ok(decoder::decode_float(result)?)
     }
 
-    pub async fn velocity(&self) -> Result<(), Error> {
+    pub async fn heading(&self) -> Result<f32, Error> {
         let arguments = vec![schema::Argument {
             position: 0,
             value: encoder::encode_u64(self.id)?,
         }];
 
-        let result = self.parent.conn.execute_procedure("SpaceCenter", "Flight_get_Velocity", arguments).await?;
-        println!("{:?}", result);
-
-        Ok(())
+        let result = self.parent.conn.execute_procedure("SpaceCenter", "Flight_get_Heading", arguments).await?;
+        Ok(decoder::decode_float(result)?)
     }
+
+}
+
+#[derive(Debug)]
+pub struct ReferenceFrame<'a> {
+    id: u64,
+    parent: &'a SpaceCenter<'a>,
 }
 
 #[derive(Debug)]

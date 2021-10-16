@@ -16,15 +16,26 @@ async fn main() -> Result<(), Error> {
     let control = vessel.control().await?;
     println!("Control: {:?}", control);
     
-    let flight = vessel.flight().await?;
+    let surface_reference_frame = vessel.surface_reference_frame().await?;
+    println!("Reference frame: {:?}", surface_reference_frame);
+    
+    let flight = vessel.flight(&surface_reference_frame).await?;
     println!("Flight: {:?}", flight);
     
     let available_torque = vessel.available_torque().await?;
     println!("{:?}", available_torque);
-    // let _ = flight.velocity().await?;
-    
+
     // let _ = control.activate_next_stage().await?;
 
+    loop {
+        let (roll, pitch, heading, velocity) = tokio::join!(
+            flight.roll(),
+            flight.pitch(),
+            flight.heading(),
+            vessel.velocity(&surface_reference_frame),
+        );
+        println!("{:.2}, {:.2}, {:.2}, {:?}", roll?, pitch?, heading?, velocity?);
+    }
     // loop {
     //     let (met, mass, funds, science) = tokio::join!(
     //         vessel.met(),
