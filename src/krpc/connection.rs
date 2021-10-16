@@ -14,7 +14,7 @@ type RpcQueue = Arc<Mutex<VecDeque<tokio::sync::oneshot::Sender<RawRpcReply>>>>;
 pub struct Connection {
     rpc_writer: Arc<Mutex<tokio::net::tcp::OwnedWriteHalf>>,
     rpc_queue: RpcQueue,
-    stream_socket: u32,
+    _stream_socket: u32,
     client_identifier: Vec<u8>,
 }
 
@@ -32,7 +32,7 @@ impl Connection {
         let mut connection = Connection {
             rpc_writer: Arc::new(Mutex::new(rpc_writer)),
             rpc_queue: rpc_queue,
-            stream_socket: 0,
+            _stream_socket: 0,
             client_identifier: vec![],
         };
         

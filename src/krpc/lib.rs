@@ -44,13 +44,6 @@ impl From<prost::DecodeError> for Error {
     }
 }
 
-enum KerbalFutureState {
-    Created,
-    Pending,
-    Finished,
-    Error,
-}
-
 pub struct Client {
     tcp_stream: Option<tokio::net::TcpStream>,
     buf: Vec<u8>,
@@ -125,44 +118,44 @@ impl Client {
         Ok(())
     }
 
-    pub async fn get_status(&mut self) -> Result<(), Error> {
-        let mut request = krpc::Request::default();
-        let mut call = krpc::ProcedureCall::default();
-        call.service = "KRPC".to_string();
-        call.procedure = "GetClientName".to_string(); // GetClientName
-        request.calls.push(call);
-        self.write_message(&request).await?;
-        self.write_message(&request).await?;
-        self.write_message(&request).await?;
-        self.write_message(&request).await?;
-        self.write_message(&request).await?;
-        self.write_message(&request).await?;
-        self.write_message(&request).await?;
-        self.write_message(&request).await?;
-        self.write_message(&request).await?;
-        self.write_message(&request).await?;
-        let return_value = self.read_response().await?;
-        println!("{:?}", return_value);
-        let mut slice = &*return_value;
-        let len = prost::encoding::decode_varint(&mut slice);
-        match std::str::from_utf8(slice) {
-            Ok(name) => println!("Name: {}", name),
-            Err(e) => {}
-        };
-        return Ok(());
-        // Now we need to parse this
-        let status = krpc::Status::decode(return_value.as_slice())?;
-        if status.version == "0.4.8" {
-            // println!("STATUS: {:?}", status);
-            return Ok(())
-        } else {
-            return Err(Error::UnexpectedResult)
-        }
+    // pub async fn get_status(&mut self) -> Result<(), Error> {
+    //     let mut request = krpc::Request::default();
+    //     let mut call = krpc::ProcedureCall::default();
+    //     call.service = "KRPC".to_string();
+    //     call.procedure = "GetClientName".to_string(); // GetClientName
+    //     request.calls.push(call);
+    //     self.write_message(&request).await?;
+    //     self.write_message(&request).await?;
+    //     self.write_message(&request).await?;
+    //     self.write_message(&request).await?;
+    //     self.write_message(&request).await?;
+    //     self.write_message(&request).await?;
+    //     self.write_message(&request).await?;
+    //     self.write_message(&request).await?;
+    //     self.write_message(&request).await?;
+    //     self.write_message(&request).await?;
+    //     let return_value = self.read_response().await?;
+    //     println!("{:?}", return_value);
+    //     let mut slice = &*return_value;
+    //     let len = prost::encoding::decode_varint(&mut slice);
+    //     match std::str::from_utf8(slice) {
+    //         Ok(name) => println!("Name: {}", name),
+    //         Err(e) => {}
+    //     };
+    //     return Ok(());
+    //     // Now we need to parse this
+    //     let status = krpc::Status::decode(return_value.as_slice())?;
+    //     if status.version == "0.4.8" {
+    //         // println!("STATUS: {:?}", status);
+    //         return Ok(())
+    //     } else {
+    //         return Err(Error::UnexpectedResult)
+    //     }
 
-        println!("{:?}", status);
+    //     println!("{:?}", status);
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
  
     async fn read_response(&mut self) -> Result<Vec<u8>, Error> {
         match &mut self.tcp_stream {
@@ -172,7 +165,7 @@ impl Client {
                 loop {
                     // read some stuff into the buf
                     let before = self.buf.len();
-                    let i = s.read_buf(&mut self.buf).await?;
+                    let _i = s.read_buf(&mut self.buf).await?;
                     println!("{} {}", before, self.buf.len());
 
                     loop {
@@ -299,17 +292,6 @@ impl Client {
         Ok(())
     }
     
-    fn build_call(service: &str, procedure: &str) -> krpc::ProcedureCall {
-        let mut call = krpc::ProcedureCall {
-            service: service.to_string(),
-            procedure: procedure.to_string(),
-            arguments: vec![],
-            service_id: 0,
-            procedure_id: 0,
-        };
-        call
-    }
-
     async fn perform_request(&mut self, service: &str, procedure: &str, args: Vec<u8>) -> Result<(), Error> {
         let mut request = krpc::Request::default();
         let mut call = krpc::ProcedureCall::default();

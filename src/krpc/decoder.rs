@@ -38,7 +38,8 @@ pub fn decode_double(input: Vec<u8>) -> Result<f64, Error> {
     Ok(f64::from_le_bytes(array.or(Err(Error::InvalidInput))?))
 }
 
-pub fn decode_uint32(mut input: Vec<u8>) -> Result<u32, Error> {
+#[allow(dead_code)]
+pub fn decode_uint32(input: Vec<u8>) -> Result<u32, Error> {
     let res = prost::encoding::decode_varint(&mut &*input)?;
     let output = res as u32;
     Ok(output)

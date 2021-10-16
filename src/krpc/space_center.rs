@@ -1,7 +1,6 @@
 use crate::connection;
 use crate::connection::Connection;
 use crate::decoder;
-use prost::Message;
 
 pub mod schema {
     include!(concat!(env!("OUT_DIR"), "/krpc.schema.rs"));
@@ -17,6 +16,11 @@ impl<'c> SpaceCenter<'c> {
         }
     }
     
+    pub async fn active_vessel(&self) -> Result<Vessel, Error> {
+
+        Ok(Vessel{})
+    }
+    
     pub async fn science(&self) -> Result<f32, Error> {
         let result = self.conn.execute_procedure("SpaceCenter", "get_Science", vec![]).await?;
         Ok(decoder::decode_float(result)?)
@@ -27,6 +31,9 @@ impl<'c> SpaceCenter<'c> {
         Ok(decoder::decode_double(result)?)
     }
 }
+
+pub struct Vessel {}
+
 
 #[derive(Debug)]
 pub enum Error {
