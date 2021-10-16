@@ -1,11 +1,12 @@
 use tokio::io::{AsyncWriteExt, AsyncReadExt};
 use prost::Message;
 
-pub mod krpc {
+pub mod schema {
     include!(concat!(env!("OUT_DIR"), "/krpc.schema.rs"));
 }
 
 mod decoder;
+mod encoder;
 pub mod connection;
 pub mod space_center;
 
@@ -89,8 +90,8 @@ impl Client {
     }
 
     async fn send_connection_request(&mut self) -> Result<(), Error> {
-        let mut test = krpc::ConnectionRequest {
-            r#type: krpc::connection_request::Type::Rpc as i32,
+        let mut test = schema::ConnectionRequest {
+            r#type: schema::connection_request::Type::Rpc as i32,
             client_name: "rust_client".to_string(),
             client_identifier: vec![],
         };
@@ -107,20 +108,20 @@ impl Client {
                 let mut slice = &*buf;
 
                 let _len = prost::encoding::decode_varint(&mut slice)?;
-                let response = krpc::ConnectionResponse::decode(slice)?;
+                let response = schema::ConnectionResponse::decode(slice)?;
                 self.client_identifier = response.client_identifier;
             },
             None => {}
         };
         
         // let buf: Vec<u8> = vec![1,2,3];
-        // krpc::ConnectionResponse::decode(buf.as_slice());
+        // schema::ConnectionResponse::decode(buf.as_slice());
         Ok(())
     }
 
     // pub async fn get_status(&mut self) -> Result<(), Error> {
-    //     let mut request = krpc::Request::default();
-    //     let mut call = krpc::ProcedureCall::default();
+    //     let mut request = schema::Request::default();
+    //     let mut call = schema::ProcedureCall::default();
     //     call.service = "KRPC".to_string();
     //     call.procedure = "GetClientName".to_string(); // GetClientName
     //     request.calls.push(call);
@@ -144,7 +145,7 @@ impl Client {
     //     };
     //     return Ok(());
     //     // Now we need to parse this
-    //     let status = krpc::Status::decode(return_value.as_slice())?;
+    //     let status = schema::Status::decode(return_value.as_slice())?;
     //     if status.version == "0.4.8" {
     //         // println!("STATUS: {:?}", status);
     //         return Ok(())
@@ -216,7 +217,7 @@ impl Client {
                 //         continue
                 //     }
                 //     let decode_slice = self.buf.get(0..(len as usize)).ok_or(Error::NoResult)?;
-                //     let response = krpc::Response::decode(decode_slice);
+                //     let response = schema::Response::decode(decode_slice);
                 //     match response {
                 //         Ok(response) => { 
                 //             self.buf = self.buf[(len as usize)..].to_vec();
@@ -235,14 +236,14 @@ impl Client {
         };
         
         // let buf: Vec<u8> = vec![1,2,3];
-        // krpc::ConnectionResponse::decode(buf.as_slice());
+        // schema::ConnectionResponse::decode(buf.as_slice());
         Err(Error::NotConnected)
     }
 
     pub async fn list_services(&mut self) -> Result<(), Error> {
         self.perform_request("KRPC", "GetServices", vec![]).await?;
         let return_value = self.read_response().await?;
-        let services = krpc::Services::decode(return_value.as_slice())?.services;
+        let services = schema::Services::decode(return_value.as_slice())?.services;
         for s in &services {
             if s.name != "KRPC" {
                 continue
@@ -254,10 +255,10 @@ impl Client {
                 }
                 // let types = match &p.return_type {
                 //     Some(t) => {
-                //         if krpc::r#type::TypeCode::from_i32(t.code) == Some(krpc::r#type::TypeCode::Tuple) {
+                //         if schema::r#type::TypeCode::from_i32(t.code) == Some(schema::r#type::TypeCode::Tuple) {
                 //             println!("{:?} {:?}", p.name, t);
                 //         }
-                //         format!("{:?}", krpc::r#type::TypeCode::from_i32(t.code))
+                //         format!("{:?}", schema::r#type::TypeCode::from_i32(t.code))
                 //     },
                 //     _ => "".to_string(),
                 // };
@@ -293,12 +294,12 @@ impl Client {
     }
     
     async fn perform_request(&mut self, service: &str, procedure: &str, args: Vec<u8>) -> Result<(), Error> {
-        let mut request = krpc::Request::default();
-        let mut call = krpc::ProcedureCall::default();
+        let mut request = schema::Request::default();
+        let mut call = schema::ProcedureCall::default();
         call.service = service.to_string();
         call.procedure = procedure.to_string();
         for a in args {
-            let mut argument = krpc::Argument::default();
+            let mut argument = schema::Argument::default();
             argument.value = vec![a];
             call.arguments.push(argument);
         }

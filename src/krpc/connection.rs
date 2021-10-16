@@ -3,14 +3,12 @@ use tokio::io::{AsyncWriteExt, AsyncReadExt};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use prost::Message;
-
-pub mod schema {
-    include!(concat!(env!("OUT_DIR"), "/krpc.schema.rs"));
-}
+use super::schema;
 
 type RawRpcReply = Vec<u8>;
 type RpcQueue = Arc<Mutex<VecDeque<tokio::sync::oneshot::Sender<RawRpcReply>>>>;
 
+#[derive(Debug)]
 pub struct Connection {
     rpc_writer: Arc<Mutex<tokio::net::tcp::OwnedWriteHalf>>,
     rpc_queue: RpcQueue,

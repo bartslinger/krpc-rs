@@ -44,10 +44,11 @@ pub fn decode_uint32(input: Vec<u8>) -> Result<u32, Error> {
     let output = res as u32;
     Ok(output)
 }
-// BOOL = 7;
-// STRING = 8;
-// BYTES = 9;
 
+pub fn decode_class(input: Vec<u8>) -> Result<u64, Error> {
+    let id = prost::encoding::decode_varint(&mut input.as_slice())?;
+    Ok(id)
+}
 
 #[derive(Debug)]
 pub enum Error {
