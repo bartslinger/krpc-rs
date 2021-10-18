@@ -1,3 +1,4 @@
+#![allow(dead_code, unused_variables, unused_imports)]
 use tokio::io::{AsyncWriteExt, AsyncReadExt};
 use prost::Message;
 
@@ -7,6 +8,7 @@ pub mod schema {
 
 mod decoder;
 mod encoder;
+pub mod error;
 pub mod connection;
 pub mod space_center;
 
