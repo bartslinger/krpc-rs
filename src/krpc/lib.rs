@@ -6,11 +6,14 @@ pub mod schema {
     include!(concat!(env!("OUT_DIR"), "/krpc.schema.rs"));
 }
 
+pub mod space_center {
+    include!(concat!(env!("OUT_DIR"), "/space_center.rs"));
+}
+
 mod decoder;
 mod encoder;
 pub mod error;
 pub mod connection;
-pub mod space_center;
 
 #[derive(Debug)]
 pub struct Vessel {

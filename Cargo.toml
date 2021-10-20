@@ -20,3 +20,4 @@ prost = "0.8"
 
 [build-dependencies]
 prost-build = { version = "0.8" }
+krpc-gen-rs = { path = "/home/bart/git/ksp/krpc-gen-rs" }

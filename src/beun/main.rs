@@ -11,14 +11,14 @@ async fn main() -> Result<(), Error> {
     let conn = krpc_rs::connection::Connection::new("127.0.0.1:50000").await?;
     let space_center = krpc_rs::space_center::SpaceCenter::new(&conn);
 
-    // let vessel = space_center.active_vessel().await?;
-    // println!("Vessel: {:?}", vessel);
+    let vessel = space_center.get_active_vessel().await?;
+    println!("Vessel: {:?}", vessel);
     
-    // let control = vessel.control().await?;
-    // println!("Control: {:?}", control);
+    let control = vessel.get_control().await?;
+    println!("Control: {:?}", control);
     
-    // let surface_reference_frame = vessel.surface_reference_frame().await?;
-    // println!("Reference frame: {:?}", surface_reference_frame);
+    let surface_reference_frame = vessel.get_surface_reference_frame().await?;
+    println!("Reference frame: {:?}", surface_reference_frame);
     
     // let flight = vessel.flight(&surface_reference_frame).await?;
     // println!("Flight: {:?}", flight);
