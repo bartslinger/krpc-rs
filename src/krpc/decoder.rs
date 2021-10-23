@@ -30,6 +30,14 @@ mod tests {
     }
 }
 
+pub fn decode_none(input: Vec<u8>) -> Result<(), Error> {
+    Ok(())
+}
+
+pub fn decode_bool(input: Vec<u8>) -> Result<bool, Error> {
+    Ok(true)
+}
+
 pub fn decode_float(input: Vec<u8>) -> Result<f32, Error> {
     let array: Result<[u8; 4], _> = input.try_into();
     Ok(f32::from_le_bytes(array.or(Err(Error::InvalidInput))?))
@@ -40,7 +48,6 @@ pub fn decode_double(input: Vec<u8>) -> Result<f64, Error> {
     Ok(f64::from_le_bytes(array.or(Err(Error::InvalidInput))?))
 }
 
-#[allow(dead_code)]
 pub fn decode_uint32(input: Vec<u8>) -> Result<u32, Error> {
     let res = prost::encoding::decode_varint(&mut &*input)?;
     let output = res as u32;
@@ -50,6 +57,33 @@ pub fn decode_uint32(input: Vec<u8>) -> Result<u32, Error> {
 pub fn decode_class(input: Vec<u8>) -> Result<u64, Error> {
     let id = prost::encoding::decode_varint(&mut input.as_slice())?;
     Ok(id)
+}
+
+pub fn decode_string(input: Vec<u8>) -> Result<String, Error> {
+    Ok("".to_string())
+}
+
+pub fn decode_sint32(input: Vec<u8>) -> Result<i32, Error> {
+    Ok(0)
+}
+
+pub fn decode_list(input: Vec<u8>) -> Result<(), Error> {
+    Ok(())
+}
+
+pub fn decode_dictionary(input: Vec<u8>) -> Result<(), Error> {
+    Ok(())
+}
+
+pub fn decode_enumeration(input: Vec<u8>) -> Result<(), Error> {
+    Ok(())
+}
+
+pub fn decode_set(input: Vec<u8>) -> Result<(), Error> {
+    Ok(())
+}
+pub fn decode_tuple(input: Vec<u8>) -> Result<(), Error> {
+    Ok(())
 }
 
 pub fn decode_tuple_2(input: Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), Error> {
