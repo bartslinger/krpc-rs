@@ -19,12 +19,17 @@ async fn main() -> Result<(), Error> {
     let vessel_name = vessel.get_name().await?;
     println!("Vessel name: {}", vessel_name);
     
-    let resources = vessel.get_resources().await?;
-    let resource_names = resources.get_names().await?;
+    let crew = vessel.get_crew().await?;
+    for person in crew {
+        let name = person.get_name().await?;
+        println!("Crew member: {}", name);
+        person.set_name("Mican Kerman".to_string()).await?;
+    }
+
     // println!("resource names: {}", resource_names);
     // try static method
-    let density = space_center::Resources::density(&conn, "yolo".into()).await;
-    println!("Density: {}", density.unwrap());
+    // let density = space_center::Resources::density(&conn, "yolo".into()).await;
+    // println!("Density: {}", density.unwrap());
     
     let _ = control.set_sas(true).await;
     let _ = control.set_throttle(1.0).await;
@@ -36,8 +41,8 @@ async fn main() -> Result<(), Error> {
     
     let _ = control.activate_next_stage().await;
     
-    let surface_reference_frame = vessel.get_surface_reference_frame().await?;
-    println!("Reference frame: {:?}", surface_reference_frame);
+    // let surface_reference_frame = vessel.get_surface_reference_frame().await?;
+    // println!("Reference frame: {:?}", surface_reference_frame);
     
     tokio::time::sleep(tokio::time::Duration::from_millis(3450)).await;
     let _ = control.set_throttle(0.2).await;

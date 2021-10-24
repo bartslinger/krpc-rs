@@ -1,6 +1,19 @@
 use prost;
 use prost::bytes::BufMut;
 
+pub trait KRPCEncode<'a> {
+    fn krpc_encode(&'a self) -> Result<Vec<u8>, Error>;
+}
+
+impl<'a> KRPCEncode<'a> for String {
+    fn krpc_encode(&self) -> Result<Vec<u8>, Error> {
+        let mut buf = Vec::<u8>::new();
+        prost::encoding::encode_varint(self.len() as u64, &mut buf);
+        buf.put_slice(self.as_bytes());
+        Ok(buf)
+    }
+}
+
 pub fn encode_none() -> Result<Vec<u8>, Error> {
     Ok(Vec::new())
 }
@@ -25,12 +38,7 @@ pub fn encode_uint32(input: u32) -> Result<Vec<u8>, Error> {
 }
 
 pub fn encode_string(input: String) -> Result<Vec<u8>, Error> {
-    println!("string length: {}", input.len());
-    let mut buf = Vec::<u8>::new();
-    prost::encoding::encode_varint(input.len() as u64, &mut buf);
-    buf.put_slice(input.as_bytes());
-    println!("buf: {:?}", buf);
-    Ok(buf)
+    input.krpc_encode()
 }
 
 pub fn encode_sint32(input: i32) -> Result<Vec<u8>, Error> {

@@ -2,20 +2,20 @@ use std::convert::TryInto;
 use super::schema;
 use prost::Message;
 
-pub trait Decode<'a> {
-    fn decode(input: Vec<u8>, conn: &'a super::connection::Connection) -> Result<Self, Error> where Self: Sized;
+pub trait KRPCDecode<'a> {
+    fn krpc_decode(input: Vec<u8>, conn: &'a super::connection::Connection) -> Result<Self, Error> where Self: Sized;
 }
 
-impl<'a> Decode<'a> for String {
-    fn decode(input: Vec<u8>, conn: &'a super::connection::Connection) -> Result<String, Error> {
+impl<'a> KRPCDecode<'a> for String {
+    fn krpc_decode(input: Vec<u8>, conn: &'a super::connection::Connection) -> Result<String, Error> {
         let mut slice = input.as_slice();
         let len = prost::encoding::decode_varint(&mut slice);
         Ok(std::str::from_utf8(slice).map_err(|_e| Error::StringDecodeError)?.to_string())
     }
 }
 
-impl<'a> Decode<'a> for () {
-    fn decode(input: Vec<u8>, conn: &'a super::connection::Connection) -> Result<(), Error> {
+impl<'a> KRPCDecode<'a> for () {
+    fn krpc_decode(input: Vec<u8>, conn: &'a super::connection::Connection) -> Result<(), Error> {
         Ok(())
     }
 }
@@ -44,29 +44,32 @@ pub fn decode_uint32<'a>(input: Vec<u8>, conn: &'a super::connection::Connection
     Ok(output)
 }
 
+pub fn decode_u64<'a>(input: Vec<u8>, conn: &'a super::connection::Connection) -> Result<u64, Error> {
+    let id = prost::encoding::decode_varint(&mut input.as_slice())?;
+    Ok(id)
+}
+
 pub fn decode_class<'a>(input: Vec<u8>, conn: &'a super::connection::Connection) -> Result<u64, Error> {
     let id = prost::encoding::decode_varint(&mut input.as_slice())?;
     Ok(id)
 }
 
 pub fn decode_string<'a>(input: Vec<u8>, conn: &'a super::connection::Connection) -> Result<String, Error> {
-    println!("String input buffer: {:?}", input);
-    let mut slice = input.as_slice();
-    let len = prost::encoding::decode_varint(&mut slice);
-    Ok(std::str::from_utf8(slice).map_err(|_e| Error::StringDecodeError)?.to_string())
+    String::krpc_decode(input, conn)
 }
 
 pub fn decode_sint32<'a>(input: Vec<u8>, conn: &'a super::connection::Connection) -> Result<i32, Error> {
     Ok(0)
 }
 
-pub fn decode_list<'a, T: Decode<'a> + std::fmt::Debug>(input: Vec<u8>, conn: &'a super::connection::Connection) -> Result<Vec<T>, Error> {
+pub fn decode_list<'a, T: KRPCDecode<'a> + std::fmt::Debug>(input: Vec<u8>, conn: &'a super::connection::Connection) -> Result<Vec<T>, Error> {
     let list = schema::List::decode(input.as_slice())?;
-    for item in list.items {
-        let test = T::decode(item, conn)?;
-        println!("{:?}", test);
-    }
-    Ok(Vec::new())
+    let result = list.items.into_iter()
+        .map(|item| T::krpc_decode(item, conn)
+            .map_err(|_e| Error::ListItemDecodeError) 
+        )
+        .collect::<Result<Vec<T>, Error>>();
+    result
 }
 
 pub fn decode_dictionary<'a>(input: Vec<u8>, conn: &'a super::connection::Connection) -> Result<(), Error> {
@@ -110,6 +113,7 @@ pub enum Error {
     InvalidInput,
     DecodeError(prost::DecodeError),
     StringDecodeError,
+    ListItemDecodeError,
 }
 
 impl From<prost::DecodeError> for Error {

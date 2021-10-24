@@ -57,7 +57,6 @@ impl Connection {
     
     pub async fn execute_procedure(&self, service: &str, procedure: &str, args: Vec<schema::Argument>) -> Result<Vec<u8>, Error> {
         let mut request = schema::Request::default();
-        println!("{:?}", args);
         request.calls.push(schema::ProcedureCall {
             service: service.to_string(),
             procedure: procedure.to_string(),
