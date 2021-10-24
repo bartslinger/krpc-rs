@@ -16,6 +16,16 @@ async fn main() -> Result<(), Error> {
     println!("Control: {:?}", control);
     let autopilot = vessel.get_auto_pilot().await?;
     
+    let vessel_name = vessel.get_name().await?;
+    println!("Vessel name: {}", vessel_name);
+    
+    let resources = vessel.get_resources().await?;
+    let resource_names = resources.get_names().await?;
+    // println!("resource names: {}", resource_names);
+    // try static method
+    let density = space_center::Resources::density(&conn, "yolo".into()).await;
+    println!("Density: {}", density.unwrap());
+    
     let _ = control.set_sas(true).await;
     let _ = control.set_throttle(1.0).await;
     let _ = autopilot.set_target_heading(-90.0).await;
