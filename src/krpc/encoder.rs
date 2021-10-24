@@ -4,46 +4,46 @@ pub fn encode_none() -> Result<Vec<u8>, Error> {
     Ok(Vec::new())
 }
 
-pub fn encode_bool() -> Result<Vec<u8>, Error> {
+pub fn encode_bool(input: bool) -> Result<Vec<u8>, Error> {
     Ok(Vec::new())
 }
 
 pub fn encode_float(input: f32) -> Result<Vec<u8>, Error> {
-    Ok(Vec::new())
+    Ok(Vec::from(f32::to_le_bytes(input)))
 }
 
 pub fn encode_double(input: f64) -> Result<Vec<u8>, Error> {
+    Ok(Vec::from(f64::to_le_bytes(input)))
+}
+
+pub fn encode_uint32(input: u32) -> Result<Vec<u8>, Error> {
     Ok(Vec::new())
 }
 
-pub fn encode_uint32() -> Result<Vec<u8>, Error> {
+pub fn encode_string(input: String) -> Result<Vec<u8>, Error> {
     Ok(Vec::new())
 }
 
-pub fn encode_string() -> Result<Vec<u8>, Error> {
+pub fn encode_sint32(input: i32) -> Result<Vec<u8>, Error> {
     Ok(Vec::new())
 }
 
-pub fn encode_sint32() -> Result<Vec<u8>, Error> {
+pub fn encode_list(input: (/*list*/)) -> Result<Vec<u8>, Error> {
     Ok(Vec::new())
 }
 
-pub fn encode_list() -> Result<Vec<u8>, Error> {
+pub fn encode_dictionary(input: (/*dict*/)) -> Result<Vec<u8>, Error> {
     Ok(Vec::new())
 }
 
-pub fn encode_dictionary() -> Result<Vec<u8>, Error> {
+pub fn encode_enumeration(input: (/*enum*/)) -> Result<Vec<u8>, Error> {
     Ok(Vec::new())
 }
 
-pub fn encode_enumeration() -> Result<Vec<u8>, Error> {
+pub fn encode_set(input: (/*set*/)) -> Result<Vec<u8>, Error> {
     Ok(Vec::new())
 }
-
-pub fn encode_set() -> Result<Vec<u8>, Error> {
-    Ok(Vec::new())
-}
-pub fn encode_tuple() -> Result<Vec<u8>, Error> {
+pub fn encode_tuple(input: (/*tuple*/)) -> Result<Vec<u8>, Error> {
     Ok(Vec::new())
 }
 pub fn encode_u64(input: u64) -> Result<Vec<u8>, Error> {

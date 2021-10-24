@@ -17,6 +17,8 @@ async fn main() -> Result<(), Error> {
     let control = vessel.get_control().await?;
     println!("Control: {:?}", control);
     
+    let _ = control.set_throttle(0.5).await;
+    
     let _ = control.activate_next_stage().await;
     
     let surface_reference_frame = vessel.get_surface_reference_frame().await?;
