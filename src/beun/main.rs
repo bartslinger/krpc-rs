@@ -1,28 +1,44 @@
 #![allow(dead_code, unused_variables, unused_imports)]
-use krpc_rs;
-
-
+use krpc_rs::{connection, space_center};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     println!("Hello, world!");
 
    
-    let conn = krpc_rs::connection::Connection::new("127.0.0.1:50000").await?;
-    let space_center = krpc_rs::space_center::SpaceCenter::new(&conn);
+    let conn = connection::Connection::new("127.0.0.1:50000").await?;
+    let space_center = space_center::SpaceCenter::new(&conn);
 
     let vessel = space_center.get_active_vessel().await?;
     println!("Vessel: {:?}", vessel);
     
     let control = vessel.get_control().await?;
     println!("Control: {:?}", control);
+    let autopilot = vessel.get_auto_pilot().await?;
     
-    let _ = control.set_throttle(0.5).await;
+    let _ = control.set_sas(true).await;
+    let _ = control.set_throttle(1.0).await;
+    let _ = autopilot.set_target_heading(-90.0).await;
+    let _ = autopilot.set_target_roll(-90.0).await;
+    let _ = autopilot.set_target_pitch(28.0).await;
+    let _ = autopilot.engage().await;
+
     
     let _ = control.activate_next_stage().await;
     
     let surface_reference_frame = vessel.get_surface_reference_frame().await?;
     println!("Reference frame: {:?}", surface_reference_frame);
+    
+    tokio::time::sleep(tokio::time::Duration::from_millis(3450)).await;
+    let _ = control.set_throttle(0.2).await;
+    let _ = autopilot.set_target_pitch(80.0).await;
+
+    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+    let _ = control.set_throttle(0.0).await;
+    let _ = control.activate_next_stage().await;
+    let _ = control.activate_next_stage().await;
+    let _ = control.activate_next_stage().await;
+    let _ = control.activate_next_stage().await;
     
     // let flight = vessel.flight(&surface_reference_frame).await?;
     // println!("Flight: {:?}", flight);

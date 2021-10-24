@@ -5,7 +5,10 @@ pub fn encode_none() -> Result<Vec<u8>, Error> {
 }
 
 pub fn encode_bool(input: bool) -> Result<Vec<u8>, Error> {
-    Ok(Vec::new())
+    let mut buf = Vec::<u8>::new();
+    let value = if input == true { 1 } else { 0 };
+    prost::encoding::encode_varint(value, &mut buf);
+    Ok(buf)
 }
 
 pub fn encode_float(input: f32) -> Result<Vec<u8>, Error> {
@@ -36,9 +39,9 @@ pub fn encode_dictionary(input: (/*dict*/)) -> Result<Vec<u8>, Error> {
     Ok(Vec::new())
 }
 
-pub fn encode_enumeration(input: (/*enum*/)) -> Result<Vec<u8>, Error> {
-    Ok(Vec::new())
-}
+// pub fn encode_enumeration(input: (/*enum*/)) -> Result<Vec<u8>, Error> {
+//     Ok(Vec::new())
+// }
 
 pub fn encode_set(input: (/*set*/)) -> Result<Vec<u8>, Error> {
     Ok(Vec::new())
